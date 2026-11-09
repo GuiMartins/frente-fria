@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.FrenteFria" parent="Base.FrenteFria">
+        <item name="android:windowBackground">@color/fundo</item>
+        <item name="android:windowSplashScreenBackground">@color/fundo</item>
+    </style>
+</resources>
