@@ -2,9 +2,12 @@ package com.frentefria.ui
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.graphics.Color
 import com.frentefria.motor.ciclo.Fase
 
@@ -50,7 +53,11 @@ private val Escuro = darkColorScheme(
 
 @Composable
 fun FrenteFriaTema(content: @Composable () -> Unit) {
-    MaterialTheme(colorScheme = if (isSystemInDarkTheme()) Escuro else Claro, content = content)
+    // A Surface por baixo de tudo define a cor do texto: sem ela, as telas sem
+    // Scaffold (trava, onboarding) escreviam em preto sobre o fundo escuro.
+    MaterialTheme(colorScheme = if (isSystemInDarkTheme()) Escuro else Claro) {
+        Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background, content = content)
+    }
 }
 
 /** Cor de cada fase no calendário e nos gráficos (mesma nos dois temas, com alfa). */
