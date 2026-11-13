@@ -67,7 +67,7 @@ import java.time.LocalDateTime
 import java.time.LocalTime
 
 @Composable
-fun ConfigTela(e: Estado, aoVoltar: () -> Unit, aoAbrirCiclos: () -> Unit) {
+fun ConfigTela(e: Estado, vm: PrincipalViewModel, aoVoltar: () -> Unit, aoAbrirCiclos: () -> Unit) {
     val context = LocalContext.current
     val activity = context as FragmentActivity
     val app = context.applicationContext as FrenteFriaApp
@@ -206,7 +206,16 @@ fun ConfigTela(e: Estado, aoVoltar: () -> Unit, aoAbrirCiclos: () -> Unit) {
 
             Secao("Zona de perigo")
             OutlinedButton(onClick = { apagando = true }) { Text("Apagar tudo", color = MaterialTheme.colorScheme.error) }
-            Text("Frente Fria 0.1.0 · nada sai deste celular", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 16.dp))
+            Text(
+                "Frente Fria ${vm.versaoInstalada} · toque para procurar versão nova\nSeus registros nunca saem deste celular; a internet é só para as atualizações.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 16.dp).clickable {
+                    vm.procurarAtualizacao { nova ->
+                        Toast.makeText(context, nova?.let { "A $it está disponível: o cartão está na tela inicial." } ?: "Você já está na última versão.", Toast.LENGTH_LONG).show()
+                    }
+                },
+            )
         }
     }
 

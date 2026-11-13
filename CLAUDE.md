@@ -1,6 +1,6 @@
 # Frente Fria
 
-App Android **pessoal** (APK instalado por USB, sem Play Store) para o marido acompanhar o ciclo da esposa e sobreviver à TPM. Tom sarcástico. Ela não precisa saber que o app existe. Mesma base do `~/Projects/jardim` (estrutura, versões, padrão de avisos).
+App Android **pessoal** (APK sem Play Store: o primeiro por USB, depois se atualiza pelas releases do GitHub) para o marido acompanhar o ciclo da esposa e sobreviver à TPM. Tom sarcástico. Ela não precisa saber que o app existe. Mesma base do `~/Projects/jardim` (estrutura, versões, padrão de avisos).
 
 ## Estrutura
 
@@ -26,7 +26,7 @@ PIN próprio do app (SHA-256 com sal no DataStore), não o do celular (ela pode 
 
 ## Privacidade
 
-Sem permissão de INTERNET. `allowBackup=false` e regras que excluem tudo do backup do Google. Backup só manual, em JSON, pelo seletor de arquivos (sem o PIN).
+INTERNET só para o atualizador (`atualizacao/Atualizador.kt`, igual ao do Jardim): consulta `releases/latest` do repo, no máximo a cada 6 h, e baixa o APK para o `PackageInstaller`. Nenhum dado sai do celular; o repo é público (desde 2026-11-12) para o app consultar sem token. `allowBackup=false` e regras que excluem tudo do backup do Google. Backup só manual, em JSON, pelo seletor de arquivos (sem o PIN).
 
 ## Banco (Room)
 
@@ -41,8 +41,9 @@ Corrente de OneTimeWork igual à do Jardim (`APPEND_OR_REPLACE`; abertura do app
 - `./dev.sh test`: testes do motor (segundos).
 - `./dev.sh run`: build release (R8), instala e abre no aparelho conectado (Fold7 via USB ou o emulador `trombadario_test`, que sobe com `./dev.sh emulator`).
 - `./dev.sh print nome`: print em `prints/` (fora do git).
+- `./dev.sh release`: do `main` limpo, envia e dispara `.github/workflows/release.yml`, que testa, builda, confere a assinatura e publica a `vX.Y.Z` (do `versionName`) com o APK. Suba `versionCode` e `versionName` antes. O app mostra o cartão "Versão X disponível" na tela inicial; o toque na versão, em Configurações, procura na hora.
 - JDK: `/opt/homebrew/opt/openjdk@17`; SDK: `/opt/homebrew/share/android-commandlinetools`.
-- O release é assinado com a chave de debug deste Mac: instala por cima sem perder dados. De outra máquina, exige desinstalar (apaga tudo; faça backup antes).
+- O release é assinado com a chave de debug deste Mac (o CI usa a mesma, do secret `DEBUG_KEYSTORE`; o `release.yml` confere o SHA-256): instala por cima sem perder dados. De outra chave, exige desinstalar (apaga tudo; faça backup antes).
 
 ## Commits
 

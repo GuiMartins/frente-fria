@@ -14,8 +14,15 @@ android {
         minSdk = 26
         targetSdk = 34
         resourceConfigurations += listOf("pt", "pt-rBR")
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.2.0"
+    }
+
+    signingConfigs {
+        getByName("debug") {
+            // No CI (release.yml), a chave do Mac vem do secret DEBUG_KEYSTORE.
+            System.getenv("FRENTEFRIA_KEYSTORE")?.let { storeFile = file(it) }
+        }
     }
 
     buildTypes {
@@ -23,7 +30,7 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            // Uso pessoal, instalado por USB: a chave de debug do Mac basta, e um
+            // Uso pessoal: a chave de debug do Mac basta (o CI usa a mesma), e um
             // build instala por cima do outro sem perder o banco.
             signingConfig = signingConfigs.getByName("debug")
         }

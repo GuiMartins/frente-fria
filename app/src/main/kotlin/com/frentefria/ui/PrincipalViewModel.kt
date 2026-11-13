@@ -4,10 +4,12 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.frentefria.FrenteFriaApp
+import com.frentefria.atualizacao.EstadoInstalacao
 import com.frentefria.dados.Ajustes
 import com.frentefria.motor.Dados
 import com.frentefria.motor.Situacao
 import com.frentefria.motor.agenda.Evento
+import com.frentefria.motor.atualizacao.Atualizacao
 import com.frentefria.motor.kit.ItemKit
 import com.frentefria.motor.registro.RegistroDia
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,8 +37,21 @@ class PrincipalViewModel(application: Application) : AndroidViewModel(applicatio
 
     private val hoje = MutableStateFlow(LocalDate.now())
 
-    /** Chamado ao voltar para o app: vira o dia sem precisar reabrir. */
-    fun atualizarHoje() { hoje.value = LocalDate.now() }
+    /** Chamado ao voltar para o app: vira o dia sem precisar reabrir (e olha se tem versão nova, no máximo a cada 6 h). */
+    fun atualizarHoje() {
+        hoje.value = LocalDate.now()
+        viewModelScope.launch { app.atualizador.verificar() }
+    }
+
+    val versaoInstalada: String get() = app.atualizador.versaoInstalada
+    val atualizacao: StateFlow<Atualizacao?> = app.atualizador.disponivel.stateIn(viewModelScope, SharingStarted.Eagerly, null)
+    val instalacao: StateFlow<EstadoInstalacao> = app.atualizador.estado
+
+    fun atualizar(a: Atualizacao) = viewModelScope.launch { app.atualizador.instalar(a) }
+    fun limparErroDaAtualizacao() = app.atualizador.limparErro()
+
+    /** O toque na versão, em Configurações: consulta agora, sem esperar as 6 h. */
+    fun procurarAtualizacao(depois: (nova: String?) -> Unit) = viewModelScope.launch { depois(app.atualizador.verificar(forcar = true)?.versao) }
 
     val conteudo get() = app.conteudo
 

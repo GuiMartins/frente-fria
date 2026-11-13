@@ -1,5 +1,8 @@
 package com.frentefria.ui.hoje
 
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -24,6 +27,7 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -37,10 +41,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.frentefria.atualizacao.EstadoInstalacao
+import com.frentefria.motor.atualizacao.Atualizacao
 import com.frentefria.motor.ciclo.Fase
 import com.frentefria.motor.ciclo.dias
 import com.frentefria.motor.conteudo.conteudoDoDia
@@ -71,6 +81,13 @@ fun HojeTela(e: Estado, vm: PrincipalViewModel, aoRegistrar: (LocalDate) -> Unit
     val clima = modo == Modo.CLIMA
     var confirmarInicio by remember { mutableStateOf(false) }
     var confirmarFim by remember { mutableStateOf(false) }
+    val contexto = LocalContext.current
+    val atualizacao by vm.atualizacao.collectAsStateWithLifecycle()
+    val instalacao by vm.instalacao.collectAsStateWithLifecycle()
+    // Voltando das configurações do Android com a permissão dada, o botão "Atualizar" volta.
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        if (instalacao == EstadoInstalacao.PrecisaPermissao && contexto.packageManager.canRequestPackageInstalls()) vm.limparErroDaAtualizacao()
+    }
 
     Tela(
         "Frente Fria",
@@ -79,6 +96,18 @@ fun HojeTela(e: Estado, vm: PrincipalViewModel, aoRegistrar: (LocalDate) -> Unit
         Column(
             Modifier.padding(padding).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(bottom = 24.dp),
         ) {
+            atualizacao?.let { nova ->
+                CartaoAtualizacao(
+                    nova,
+                    instalada = vm.versaoInstalada,
+                    estado = instalacao,
+                    aoAtualizar = { vm.atualizar(nova) },
+                    aoPermitir = {
+                        contexto.startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${contexto.packageName}")))
+                    },
+                )
+                Spacer(Modifier.height(12.dp))
+            }
             val agora = s.agora
             if (agora == null) {
                 Cartao {
@@ -241,6 +270,38 @@ fun HojeTela(e: Estado, vm: PrincipalViewModel, aoRegistrar: (LocalDate) -> Unit
             confirmButton = { TextButton(onClick = { vm.parou(s.hoje); confirmarFim = false }) { Text("Registrar") } },
             dismissButton = { TextButton(onClick = { confirmarFim = false }) { Text("Cancelar") } },
         )
+    }
+}
+
+/** Sem palavras proibidas: aparece igual nos dois modos. */
+@Composable
+private fun CartaoAtualizacao(
+    nova: Atualizacao,
+    instalada: String,
+    estado: EstadoInstalacao,
+    aoAtualizar: () -> Unit,
+    aoPermitir: () -> Unit,
+) {
+    val cor = MaterialTheme.colorScheme.onPrimaryContainer
+    Cartao(cor = MaterialTheme.colorScheme.primaryContainer) {
+        Text("Versão ${nova.versao} disponível", style = MaterialTheme.typography.titleMedium, color = cor)
+        when (estado) {
+            EstadoInstalacao.Parado -> Text("Você está na $instalada. Seus registros ficam como estão.", color = cor)
+            EstadoInstalacao.PrecisaPermissao ->
+                Text("O Android pede, uma vez só, que você libere o app para instalar as próprias atualizações.", color = cor)
+            is EstadoInstalacao.Baixando -> {
+                Text("Baixando…", color = cor)
+                LinearProgressIndicator(progress = { estado.fracao }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
+            }
+            EstadoInstalacao.Instalando -> Text("Instalando. O app fecha sozinho quando terminar; é só abrir de novo.", color = cor)
+            is EstadoInstalacao.Erro -> Text(estado.mensagem, color = cor)
+        }
+        when (estado) {
+            EstadoInstalacao.Parado, is EstadoInstalacao.Erro ->
+                FilledTonalButton(onClick = aoAtualizar) { Text(if (estado is EstadoInstalacao.Erro) "Tentar de novo" else "Atualizar") }
+            EstadoInstalacao.PrecisaPermissao -> FilledTonalButton(onClick = aoPermitir) { Text("Liberar") }
+            else -> Unit
+        }
     }
 }
 

@@ -90,7 +90,7 @@ fun Navegacao(viewModel: PrincipalViewModel) {
                     aoVoltar = { nav.popBackStack() },
                 )
             }
-            composable("config") { ConfigTela(e, aoVoltar = { nav.popBackStack() }, aoAbrirCiclos = { nav.navigate("ciclos") }) }
+            composable("config") { ConfigTela(e, viewModel, aoVoltar = { nav.popBackStack() }, aoAbrirCiclos = { nav.navigate("ciclos") }) }
             composable("ciclos") { CiclosTela(e, viewModel, aoVoltar = { nav.popBackStack() }) }
         }
     }

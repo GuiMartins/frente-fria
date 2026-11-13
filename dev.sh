@@ -9,11 +9,14 @@
 #   run        build + install + start (o mais usado)
 #   logs       logcat do processo do app
 #   print X    salva um print da tela em prints/X.png
+#   release    envia o main e dispara o workflow de release no GitHub, que
+#              testa, builda, assina e publica a vX.Y.Z (do versionName) com o APK;
+#              o app acha a versão nova sozinho
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export JAVA_HOME="${JAVA_HOME:-/opt/homebrew/opt/openjdk@17}"
-ANDROID_HOME="${ANDROID_HOME:-/opt/homebrew/share/android-commandlinetools}"
+export ANDROID_HOME="${ANDROID_HOME:-/opt/homebrew/share/android-commandlinetools}"
 ADB="$ANDROID_HOME/platform-tools/adb"
 EMULATOR="$ANDROID_HOME/emulator/emulator"
 AVD_NOME="${AVD_NOME:-trombadario_test}"
@@ -43,5 +46,25 @@ case "${1:-run}" in
         "$ADB" exec-out screencap -p > "$SCRIPT_DIR/prints/${2:-print}.png"
         echo "prints/${2:-print}.png"
         ;;
-    *) echo "Uso: ./dev.sh [emulator|test|build|install|start|run|logs|print]"; exit 1 ;;
+    release)
+        # O APK sai do CI (.github/workflows/release.yml), assinado com a chave
+        # de debug deste Mac guardada no secret DEBUG_KEYSTORE.
+        cd "$SCRIPT_DIR"
+        versao=$(grep -o 'versionName = "[^"]*"' app/build.gradle.kts | cut -d'"' -f2)
+        tag="v$versao"
+        if [ "$(git branch --show-current)" != "main" ]; then echo "A release sai do main."; exit 1; fi
+        if [ -n "$(git status --porcelain)" ]; then echo "Há mudanças sem commit: a release tem que sair igual ao main."; exit 1; fi
+        if git ls-remote --exit-code --tags origin "$tag" >/dev/null; then
+            echo "A tag $tag já existe: suba versionName e versionCode em app/build.gradle.kts."
+            exit 1
+        fi
+        git push origin main
+        gh workflow run release.yml --ref main
+        echo "Workflow disparado para $tag; acompanhando..."
+        sleep 5
+        id=$(gh run list --workflow release.yml --limit 1 --json databaseId --jq '.[0].databaseId')
+        gh run watch "$id" --exit-status
+        gh release view "$tag" --json url --jq .url
+        ;;
+    *) echo "Uso: ./dev.sh [emulator|test|build|install|start|run|logs|print|release]"; exit 1 ;;
 esac

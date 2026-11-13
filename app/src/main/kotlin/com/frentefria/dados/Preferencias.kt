@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.frentefria.motor.atualizacao.Atualizacao
 import com.frentefria.motor.avisos.Horario
 import com.frentefria.motor.ciclo.ConfigCiclo
 import com.frentefria.motor.texto.Modo
@@ -14,6 +15,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.serialization.json.Json
+import java.time.Instant
 import java.time.LocalTime
 
 private val Context.dataStore by preferencesDataStore("preferencias")
@@ -80,6 +83,20 @@ class Preferencias(private val context: Context) {
     suspend fun salvarPin(hash: String, sal: String) = context.dataStore.edit { it[PIN_HASH] = hash; it[PIN_SAL] = sal }
     suspend fun removerPin() = context.dataStore.edit { it.remove(PIN_HASH); it.remove(PIN_SAL); it[BIOMETRIA] = false }
 
+    /** A última release consultada no GitHub; null antes da primeira ou se ela não tinha APK. */
+    val atualizacao: Flow<Atualizacao?> = context.dataStore.data
+        .map { prefs -> prefs[ATUALIZACAO]?.let { Json.decodeFromString(Atualizacao.serializer(), it) } }
+        .distinctUntilChanged()
+
+    suspend fun atualizacaoConsultadaEm(): Instant? = context.dataStore.data.first()[ATUALIZACAO_EM]?.let(Instant::parse)
+
+    suspend fun guardarAtualizacao(atualizacao: Atualizacao?, em: Instant) {
+        context.dataStore.edit {
+            if (atualizacao == null) it.remove(ATUALIZACAO) else it[ATUALIZACAO] = Json.encodeToString(Atualizacao.serializer(), atualizacao)
+            it[ATUALIZACAO_EM] = em.toString()
+        }
+    }
+
     suspend fun limparTudo() = context.dataStore.edit { it.clear() }
 
     private companion object {
@@ -96,5 +113,7 @@ class Preferencias(private val context: Context) {
         val NOITE = stringPreferencesKey("noite")
         val RESUMO_TODO_DIA = booleanPreferencesKey("resumo_todo_dia")
         val LEMBRETE_NOITE = booleanPreferencesKey("lembrete_noite")
+        val ATUALIZACAO = stringPreferencesKey("atualizacao")
+        val ATUALIZACAO_EM = stringPreferencesKey("atualizacao_em")
     }
 }
