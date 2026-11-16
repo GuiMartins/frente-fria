@@ -1,8 +1,12 @@
 package com.frentefria.ui.hoje
 
+import android.Manifest
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -46,6 +50,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -84,9 +89,20 @@ fun HojeTela(e: Estado, vm: PrincipalViewModel, aoRegistrar: (LocalDate) -> Unit
     val contexto = LocalContext.current
     val atualizacao by vm.atualizacao.collectAsStateWithLifecycle()
     val instalacao by vm.instalacao.collectAsStateWithLifecycle()
+    // Sem permissão o Avisos descarta tudo em silêncio: o cartão é o único sinal.
+    var avisosLigados by remember { mutableStateOf(true) }
+    val abrirAjustesDeAvisos = {
+        contexto.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, contexto.packageName))
+    }
+    // Negada de vez, o pedido volta false na hora: aí só pelas configurações do Android.
+    val pedirPermissao = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { dada ->
+        avisosLigados = NotificationManagerCompat.from(contexto).areNotificationsEnabled()
+        if (!dada || !avisosLigados) abrirAjustesDeAvisos()
+    }
     // Voltando das configurações do Android com a permissão dada, o botão "Atualizar" volta.
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         if (instalacao == EstadoInstalacao.PrecisaPermissao && contexto.packageManager.canRequestPackageInstalls()) vm.limparErroDaAtualizacao()
+        avisosLigados = NotificationManagerCompat.from(contexto).areNotificationsEnabled()
     }
 
     Tela(
@@ -106,6 +122,17 @@ fun HojeTela(e: Estado, vm: PrincipalViewModel, aoRegistrar: (LocalDate) -> Unit
                         contexto.startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${contexto.packageName}")))
                     },
                 )
+                Spacer(Modifier.height(12.dp))
+            }
+            if (!avisosLigados) {
+                Cartao(cor = MaterialTheme.colorScheme.errorContainer) {
+                    val cor = MaterialTheme.colorScheme.onErrorContainer
+                    Text("Avisos desligados", style = MaterialTheme.typography.titleMedium, color = cor)
+                    Text("O Android está bloqueando as notificações do app: nenhum alerta chega até você ligar.", color = cor)
+                    FilledTonalButton(onClick = {
+                        if (Build.VERSION.SDK_INT >= 33) pedirPermissao.launch(Manifest.permission.POST_NOTIFICATIONS) else abrirAjustesDeAvisos()
+                    }) { Text("Ligar avisos") }
+                }
                 Spacer(Modifier.height(12.dp))
             }
             val agora = s.agora
